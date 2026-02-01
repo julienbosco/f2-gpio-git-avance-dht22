@@ -1,174 +1,112 @@
-name: Autograding Tests - Formatif F2
+name: Formatif F2 - Progressive Milestones
 on:
-  - push
-  - workflow_dispatch
-  - repository_dispatch
-permissions:
-  checks: write
-  actions: read
-  contents: read
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
 jobs:
-  run-autograding-tests:
+  autograding:
     runs-on: ubuntu-latest
-    if: github.actor != 'github-classroom[bot]'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Récupérer tout l'historique pour vérifier les branches
+          fetch-depth: 0  # Full history for git tests
 
-      - name: Vérifier les marqueurs de tests locaux
-        id: check-markers
-        run: |
-          echo "Vérification que les tests locaux ont été exécutés..."
-
-          # Vérifier que le dossier .test_markers existe
-          if [ ! -d ".test_markers" ]; then
-            echo "❌ ERREUR: Les tests locaux n'ont pas été exécutés!"
-            echo "Veuillez exécuter 'python3 run_tests.py' sur le Raspberry Pi avant de pousser."
-            exit 1
-          fi
-
-          # Vérifier les marqueurs requis
-          required_markers=(
-            "led_scripts_verified.txt"
-            "dht22_script_verified.txt"
-            "git_branches_verified.txt"
-            "git_commits_verified.txt"
-          )
-
-          missing_markers=()
-          for marker in "${required_markers[@]}"; do
-            if [ ! -f ".test_markers/$marker" ]; then
-              missing_markers+=("$marker")
-            fi
-          done
-
-          if [ ${#missing_markers[@]} -gt 0 ]; then
-            echo "❌ ERREUR: Marqueurs de tests manquants:"
-            for marker in "${missing_markers[@]}"; do
-              echo "   - $marker"
-            done
-            echo "Veuillez exécuter 'python3 run_tests.py' sur le Raspberry Pi."
-            exit 1
-          fi
-
-          echo "✅ Tous les marqueurs de tests sont présents"
-
-      - name: Vérifier la syntaxe Python - Scripts LED
-        id: led-syntax
-        run: |
-          echo "Vérification de la syntaxe Python des scripts LED..."
-
-          # Vérifier led_simple.py
-          if [ -f "led_simple.py" ]; then
-            python3 -m py_compile led_simple.py
-            echo "✅ led_simple.py: syntaxe valide"
-          else
-            echo "❌ led_simple.py introuvable"
-            exit 1
-          fi
-
-          # Vérifier led_rgb.py (optionnel)
-          if [ -f "led_rgb.py" ]; then
-            python3 -m py_compile led_rgb.py
-            echo "✅ led_rgb.py: syntaxe valide"
-          fi
-
-      - name: Vérifier les imports RPi.GPIO
-        id: led-imports
-        run: |
-          echo "Vérification des imports RPi.GPIO..."
-
-          if grep -q "import RPi.GPIO" led_simple.py; then
-            echo "✅ Import RPi.GPIO trouvé dans led_simple.py"
-          else
-            echo "❌ Import RPi.GPIO manquant dans led_simple.py"
-            exit 1
-          fi
-
-      - name: Vérifier la syntaxe Python - Script DHT22
-        id: dht22-syntax
-        run: |
-          echo "Vérification de la syntaxe Python du script DHT22..."
-
-          if [ -f "dht22.py" ]; then
-            python3 -m py_compile dht22.py
-            echo "✅ dht22.py: syntaxe valide"
-          else
-            echo "❌ dht22.py introuvable"
-            exit 1
-          fi
-
-      - name: Vérifier les imports Adafruit
-        id: dht22-imports
-        run: |
-          echo "Vérification des imports Adafruit..."
-
-          if grep -q "import board" dht22.py && grep -q "adafruit_dht" dht22.py; then
-            echo "✅ Imports requis trouvés dans dht22.py"
-          else
-            echo "❌ Imports requis manquants dans dht22.py"
-            exit 1
-          fi
-
-      - name: Vérifier l'historique Git - Branches
-        id: git-branches
-        run: |
-          echo "Vérification des branches Git dans l'historique..."
-
-          # Chercher les branches feature dans l'historique
-          if git log --all --oneline --grep="feature/led" | grep -q . || \
-             git log --all --oneline --grep="led" | grep -q .; then
-            echo "✅ Branche feature/led détectée dans l'historique"
-          else
-            echo "⚠️  Branche feature/led non détectée (peut être fusionnée)"
-          fi
-
-          if git log --all --oneline --grep="feature/dht22" | grep -q . || \
-             git log --all --oneline --grep="dht22" | grep -q .; then
-            echo "✅ Branche feature/dht22 détectée dans l'historique"
-          else
-            echo "⚠️  Branche feature/dht22 non détectée (peut être fusionnée)"
-          fi
-
-      - name: Vérifier le format des commits
-        id: git-commits
-        run: |
-          echo "Vérification du format des messages de commit..."
-
-          # Compter les commits conventionnés
-          total=$(git log --oneline -20 | wc -l)
-          if [ $total -gt 0 ]; then
-            conventional=$(git log --oneline -20 | grep -E "^(feat|fix|docs|test|refactor|style|chore)\(" | wc -l)
-            echo "Commits conventionnés: $conventional/$total"
-
-            if [ $conventional -gt 0 ]; then
-              echo "✅ Format des commits conforme"
-            else
-              echo "⚠️  Aucun commit conventionné détecté"
-            fi
-          fi
-
-      - name: Rapport de réussite
-        if: success()
-        run: |
-          echo "╔════════════════════════════════════════════════════════╗"
-          echo "║           🎉 FORMATIF F2 - RÉUSSI! 🎉                 ║"
-          echo "╚════════════════════════════════════════════════════════╝"
-          echo ""
-          echo "✅ Toutes les vérifications sont passées:"
-          echo "   - Scripts LED créés et syntaxe valide"
-          echo "   - Script DHT22 créé et syntaxe valide"
-          echo "   - Tests locaux exécutés sur Raspberry Pi"
-          echo "   - Historique Git avec branches"
-
-      - name: Créer le rapport de notation
-        uses: classroom-resources/autograding-grading-reporter@v1
-        if: always()
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
         with:
-          runners: |
-            check-markers
-            led-syntax,led-imports
-            dht22-syntax,dht22-imports
-            git-branches,git-commits
+          python-version: '3.11'
+
+      - name: Install pytest
+        run: pip install -q pytest
+
+      # =========================================
+      # MILESTONE 1: LED Control (25 points)
+      # =========================================
+      - name: "Milestone 1: LED Control (25 pts)"
+        id: milestone-1
+        continue-on-error: true
+        run: |
+          echo "=============================================="
+          echo "MILESTONE 1: LED Control"
+          echo "=============================================="
+          echo ""
+          echo "Verifying: led_simple.py exists, syntax valid, RPi.GPIO import"
+          echo ""
+          pytest tests/test_milestone_01.py -v --tb=short
+          echo "milestone_1_passed=true" >> $GITHUB_OUTPUT
+
+      # =========================================
+      # MILESTONE 2: DHT22 with Retry (35 points)
+      # =========================================
+      - name: "Milestone 2: DHT22 with Retry Logic (35 pts)"
+        id: milestone-2
+        continue-on-error: true
+        run: |
+          echo "=============================================="
+          echo "MILESTONE 2: DHT22 with Retry Logic"
+          echo "=============================================="
+          echo ""
+          echo "IMPORTANT: DHT22 errors are NORMAL!"
+          echo "The one-wire protocol fails 10-20% of the time."
+          echo "Your code MUST implement retry logic."
+          echo ""
+          pytest tests/test_milestone_02.py -v --tb=short
+          echo "milestone_2_passed=true" >> $GITHUB_OUTPUT
+
+      # =========================================
+      # MILESTONE 3: Git Workflow (40 points)
+      # =========================================
+      - name: "Milestone 3: Git Workflow (40 pts)"
+        id: milestone-3
+        run: |
+          echo "=============================================="
+          echo "MILESTONE 3: Git Workflow"
+          echo "=============================================="
+          echo ""
+          echo "Verifying: multiple commits, descriptive messages, all files present"
+          echo ""
+          pytest tests/test_milestone_03.py -v --tb=short
+
+      # =========================================
+      # Summary
+      # =========================================
+      - name: Results Summary
+        if: always()
+        run: |
+          echo ""
+          echo "=============================================="
+          echo "         FORMATIF F2 - RESULTS SUMMARY       "
+          echo "=============================================="
+          echo ""
+          echo "  Milestone 1 (25 pts): ${{ steps.milestone-1.outcome }}"
+          echo "  Milestone 2 (35 pts): ${{ steps.milestone-2.outcome }}"
+          echo "  Milestone 3 (40 pts): ${{ steps.milestone-3.outcome }}"
+          echo ""
+          echo "=============================================="
+          echo ""
+          echo "  Retries illimites!"
+          echo "  Poussez a nouveau pour reessayer."
+          echo ""
+          echo "  RAPPEL: Les erreurs DHT22 sont NORMALES!"
+          echo "  Votre code doit implementer une logique de retry."
+          echo ""
+          echo "=============================================="
+
+      - name: Generate Step Summary
+        if: always()
+        run: |
+          echo "## Formatif F2 - Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Milestone | Points | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 1. LED Control | 25 | ${{ steps.milestone-1.outcome == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 2. DHT22 with Retry | 35 | ${{ steps.milestone-2.outcome == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 3. Git Workflow | 40 | ${{ steps.milestone-3.outcome == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Retries illimites** - Poussez a nouveau pour reessayer!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> **Note**: Les erreurs DHT22 sont normales. Votre code doit implementer une logique de retry." >> $GITHUB_STEP_SUMMARY
