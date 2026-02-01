@@ -1,18 +1,50 @@
-# Formatif F2 — GPIO, Git avancé et capteur DHT22
+# Formatif F2 — GPIO, Git et capteur DHT22
 
-**Cours** : 243-413-SH — Introduction aux objets connectés
+**Cours** : 243-413-SH — Introduction aux objets connectes
 **Semaine** : 2
-**Type** : Formative (non notée)
-**Date limite** : Fin de la séance de laboratoire
+**Type** : Formative (non notee)
+**Retries** : Illimites - poussez autant de fois que necessaire!
+
+---
+
+## Progressive Milestones
+
+Ce formatif utilise des **jalons progressifs** avec retroaction detaillee:
+
+| Jalon | Points | Verification |
+|-------|--------|-------------|
+| **Milestone 1** | 25 pts | Scripts LED avec RPi.GPIO |
+| **Milestone 2** | 35 pts | DHT22 avec LOGIQUE DE RETRY (critique!) |
+| **Milestone 3** | 40 pts | Git workflow de base (clone/add/commit/push) |
+
+**Chaque test echoue vous dit**: ce qui etait attendu, ce qui a ete trouve, une suggestion pour corriger.
+
+---
+
+## IMPORTANT: Erreurs DHT22 sont NORMALES!
+
+Le protocole one-wire du DHT22 echoue 10-20% du temps. **C'est normal!**
+Votre code **DOIT** implementer une logique de retry:
+
+```python
+for attempt in range(5):
+    try:
+        temperature = dht.temperature
+        humidity = dht.humidity
+        break  # Succes!
+    except RuntimeError as e:
+        print(f"Retry {attempt + 1}/5: {e}")
+        time.sleep(2)
+```
 
 ---
 
 ## Objectif
 
-Ce formatif vise à vérifier que vous êtes capable de :
-1. ✅ Contrôler des actionneurs (LEDs) via les broches GPIO
-2. ✅ Utiliser les branches Git pour organiser votre travail
-3. ✅ Lire un capteur DHT22 (température + humidité)
+Ce formatif vise a verifier que vous etes capable de :
+1. Controler des actionneurs (LEDs) via les broches GPIO
+2. Utiliser les commandes Git de base (clone, add, commit, push)
+3. Lire un capteur DHT22 (temperature + humidite) avec gestion des erreurs
 
 ---
 
